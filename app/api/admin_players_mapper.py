@@ -1,4 +1,5 @@
 from app.schemas.player_refresh import (
+    MatchSyncResponse,
     PlayerProfileResponse,
     PlayerRefreshResponse,
     RankedEntryResponse,
@@ -30,4 +31,15 @@ def to_player_refresh_response(result: PlayerRefreshResult) -> PlayerRefreshResp
             )
             for entry in result.ranked_entries
         ],
+        match_sync=MatchSyncResponse(
+            queue=result.match_sync.queue,
+            requested_count=result.match_sync.requested_count,
+            match_ids_received=result.match_sync.match_ids_received,
+            new_matches_saved=result.match_sync.new_matches_saved,
+            existing_matches_skipped=result.match_sync.existing_matches_skipped,
+            player_matches_upserted=result.match_sync.player_matches_upserted,
+            backfilled_from_raw=result.match_sync.backfilled_from_raw,
+            failed_matches=result.match_sync.failed_matches,
+            failed_match_ids=result.match_sync.failed_match_ids,
+        ),
     )

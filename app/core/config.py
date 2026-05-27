@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     riot_backoff_base_seconds: float = 0.5
     riot_rate_limit_rps: float = 20.0
     riot_rate_limit_capacity: int = 20
+    riot_match_sync_count: int = 30
+    riot_match_sync_queue: int = 420
 
     model_config = SettingsConfigDict(
         env_file=".env",

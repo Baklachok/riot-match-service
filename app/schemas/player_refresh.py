@@ -29,11 +29,24 @@ class PlayerProfileResponse(BaseModel):
     refresh_error: str | None = None
 
 
+class MatchSyncResponse(BaseModel):
+    queue: int
+    requested_count: int
+    match_ids_received: int
+    new_matches_saved: int
+    existing_matches_skipped: int
+    player_matches_upserted: int
+    backfilled_from_raw: int
+    failed_matches: int
+    failed_match_ids: list[str]
+
+
 class PlayerRefreshResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     player: PlayerProfileResponse
     ranked_entries: list[RankedEntryResponse]
+    match_sync: MatchSyncResponse
 
 
 class PlayerRefreshErrorDetail(BaseModel):

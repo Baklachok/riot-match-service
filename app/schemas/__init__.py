@@ -1,6 +1,7 @@
 """Pydantic schemas."""
 
 from app.schemas.player_refresh import (
+    MatchSyncResponse,
     PlayerProfileResponse,
     PlayerRefreshErrorDetail,
     PlayerRefreshErrorResponse,
@@ -10,6 +11,7 @@ from app.schemas.player_refresh import (
 )
 
 __all__ = (
+    "MatchSyncResponse",
     "PlayerProfileResponse",
     "PlayerRefreshErrorDetail",
     "PlayerRefreshErrorResponse",

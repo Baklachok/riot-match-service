@@ -43,6 +43,8 @@ async def refresh_player(
         session=session,
         riot_client=riot_client,
         platform=settings.riot_platform,
+        match_sync_count=settings.riot_match_sync_count,
+        match_sync_queue=settings.riot_match_sync_queue,
     )
 
     try:

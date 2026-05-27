@@ -26,6 +26,20 @@ class RefreshedRankedEntry:
 
 
 @dataclass(frozen=True)
+class MatchSyncSummary:
+    queue: int
+    requested_count: int
+    match_ids_received: int
+    new_matches_saved: int
+    existing_matches_skipped: int
+    player_matches_upserted: int
+    backfilled_from_raw: int
+    failed_matches: int
+    failed_match_ids: list[str]
+
+
+@dataclass(frozen=True)
 class PlayerRefreshResult:
     player: RefreshedPlayer
     ranked_entries: list[RefreshedRankedEntry]
+    match_sync: MatchSyncSummary
