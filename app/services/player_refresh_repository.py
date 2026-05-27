@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
@@ -18,124 +19,7 @@ class PlayerRefreshRepository:
         self._session = session
         self._platform = platform.strip().lower()
 
-    async def persist_success(
-        self,
-        *,
-        account: RiotAccount,
-        summoner: RiotSummoner,
-        ranked_entries: list[RefreshedRankedEntry],
-        match_records: list[dict[str, object]],
-        player_match_records: list[dict[str, object]],
-        refreshed_at: datetime,
-        refresh_status: str,
-        refresh_error: str | None,
-    ) -> None:
-        if self._session.in_transaction():
-            try:
-                await self._persist_success_operations(
-                    account=account,
-                    summoner=summoner,
-                    ranked_entries=ranked_entries,
-                    match_records=match_records,
-                    player_match_records=player_match_records,
-                    refreshed_at=refreshed_at,
-                    refresh_status=refresh_status,
-                    refresh_error=refresh_error,
-                )
-                await self._session.commit()
-            except Exception:
-                await self._session.rollback()
-                raise
-            return
-
-        async with self._session.begin():
-            await self._persist_success_operations(
-                account=account,
-                summoner=summoner,
-                ranked_entries=ranked_entries,
-                match_records=match_records,
-                player_match_records=player_match_records,
-                refreshed_at=refreshed_at,
-                refresh_status=refresh_status,
-                refresh_error=refresh_error,
-            )
-
-    async def persist_failed(
-        self,
-        *,
-        account: RiotAccount,
-        summoner: RiotSummoner | None,
-        refreshed_at: datetime,
-        error_message: str,
-    ) -> None:
-        if self._session.in_transaction():
-            try:
-                await self._persist_failed_operations(
-                    account=account,
-                    summoner=summoner,
-                    refreshed_at=refreshed_at,
-                    error_message=error_message,
-                )
-                await self._session.commit()
-            except Exception:
-                await self._session.rollback()
-                raise
-            return
-
-        async with self._session.begin():
-            await self._persist_failed_operations(
-                account=account,
-                summoner=summoner,
-                refreshed_at=refreshed_at,
-                error_message=error_message,
-            )
-
-    async def _persist_success_operations(
-        self,
-        *,
-        account: RiotAccount,
-        summoner: RiotSummoner,
-        ranked_entries: list[RefreshedRankedEntry],
-        match_records: list[dict[str, object]],
-        player_match_records: list[dict[str, object]],
-        refreshed_at: datetime,
-        refresh_status: str,
-        refresh_error: str | None,
-    ) -> None:
-        await self._upsert_player(
-            account=account,
-            summoner=summoner,
-            refreshed_at=refreshed_at,
-            refresh_status=refresh_status,
-            refresh_error=refresh_error,
-            update_profile_fields=True,
-        )
-        await self._sync_ranked_entries(
-            player_puuid=account.puuid,
-            ranked_entries=ranked_entries,
-            refreshed_at=refreshed_at,
-        )
-        await self._upsert_matches(match_records)
-        await self._upsert_player_matches(player_match_records)
-
-    async def _persist_failed_operations(
-        self,
-        *,
-        account: RiotAccount,
-        summoner: RiotSummoner | None,
-        refreshed_at: datetime,
-        error_message: str,
-    ) -> None:
-        await self._upsert_player(
-            account=account,
-            summoner=summoner,
-            refreshed_at=refreshed_at,
-            refresh_status="failed",
-            refresh_error=error_message,
-            update_profile_fields=summoner is not None,
-        )
-
-    async def _upsert_player(
+    async def upsert_player(
         self,
         *,
         account: RiotAccount,
@@ -153,7 +37,7 @@ class PlayerRefreshRepository:
             refresh_error=refresh_error,
         )
         insert_stmt = insert(Player).values(**player_values)
-        update_values = self._build_player_update_values(
+        update_values = self._player_update_values(
             player_values=player_values,
             update_profile_fields=update_profile_fields,
         )
@@ -186,27 +70,30 @@ class PlayerRefreshRepository:
             "updated_at": refreshed_at,
         }
 
-    def _build_player_update_values(
+    def _player_update_values(
         self,
         *,
         player_values: dict[str, object],
         update_profile_fields: bool,
     ) -> dict[str, object]:
-        update_values: dict[str, object] = {
-            "game_name": player_values["game_name"],
-            "tag_line": player_values["tag_line"],
-            "platform": player_values["platform"],
-            "last_refreshed_at": player_values["last_refreshed_at"],
-            "refresh_status": player_values["refresh_status"],
-            "refresh_error": player_values["refresh_error"],
-            "updated_at": player_values["updated_at"],
-        }
+        update_values = self._pick_fields(
+            player_values,
+            (
+                "game_name",
+                "tag_line",
+                "platform",
+                "last_refreshed_at",
+                "refresh_status",
+                "refresh_error",
+                "updated_at",
+            ),
+        )
         if update_profile_fields:
             update_values["profile_icon_id"] = player_values["profile_icon_id"]
             update_values["summoner_level"] = player_values["summoner_level"]
         return update_values
 
-    async def _sync_ranked_entries(
+    async def sync_ranked_entries(
         self,
         *,
         player_puuid: str,
@@ -226,14 +113,10 @@ class PlayerRefreshRepository:
             }
             statement = insert(RankedEntry).values(**entry_values).on_conflict_do_update(
                 constraint="uq_ranked_entries_player_queue",
-                set_={
-                    "tier": entry_values["tier"],
-                    "rank": entry_values["rank"],
-                    "league_points": entry_values["league_points"],
-                    "wins": entry_values["wins"],
-                    "losses": entry_values["losses"],
-                    "updated_at": entry_values["updated_at"],
-                },
+                set_=self._pick_fields(
+                    entry_values,
+                    ("tier", "rank", "league_points", "wins", "losses", "updated_at"),
+                ),
             )
             await self._session.execute(statement)
 
@@ -274,49 +157,60 @@ class PlayerRefreshRepository:
         rows = await self._session.execute(statement)
         return set(rows.scalars().all())
 
-    async def _upsert_matches(self, match_records: list[dict[str, object]]) -> None:
+    async def upsert_matches(self, match_records: list[dict[str, object]]) -> None:
         for match_record in match_records:
             statement = insert(Match).values(**match_record).on_conflict_do_update(
                 index_elements=[Match.match_id],
-                set_={
-                    "platform": match_record["platform"],
-                    "queue_id": match_record["queue_id"],
-                    "game_start": match_record["game_start"],
-                    "duration_seconds": match_record["duration_seconds"],
-                    "patch": match_record["patch"],
-                    "raw_json": match_record["raw_json"],
-                },
+                set_=self._pick_fields(
+                    match_record,
+                    (
+                        "platform",
+                        "queue_id",
+                        "game_start",
+                        "duration_seconds",
+                        "patch",
+                        "raw_json",
+                    ),
+                ),
             )
             await self._session.execute(statement)
 
-    async def _upsert_player_matches(self, player_match_records: list[dict[str, object]]) -> None:
+    async def upsert_player_matches(self, player_match_records: list[dict[str, object]]) -> None:
         for player_match_record in player_match_records:
             statement = insert(PlayerMatch).values(**player_match_record).on_conflict_do_update(
                 constraint="uq_player_matches_player_match",
-                set_={
-                    "champion_id": player_match_record["champion_id"],
-                    "champion_name": player_match_record["champion_name"],
-                    "team_position": player_match_record["team_position"],
-                    "win": player_match_record["win"],
-                    "kills": player_match_record["kills"],
-                    "deaths": player_match_record["deaths"],
-                    "assists": player_match_record["assists"],
-                    "gold_earned": player_match_record["gold_earned"],
-                    "total_minions_killed": player_match_record["total_minions_killed"],
-                    "neutral_minions_killed": player_match_record["neutral_minions_killed"],
-                    "vision_score": player_match_record["vision_score"],
-                    "total_damage_dealt_to_champions": player_match_record[
-                        "total_damage_dealt_to_champions"
-                    ],
-                    "summoner_spell_1_id": player_match_record["summoner_spell_1_id"],
-                    "summoner_spell_2_id": player_match_record["summoner_spell_2_id"],
-                    "item0": player_match_record["item0"],
-                    "item1": player_match_record["item1"],
-                    "item2": player_match_record["item2"],
-                    "item3": player_match_record["item3"],
-                    "item4": player_match_record["item4"],
-                    "item5": player_match_record["item5"],
-                    "item6": player_match_record["item6"],
-                },
+                set_=self._pick_fields(
+                    player_match_record,
+                    (
+                        "champion_id",
+                        "champion_name",
+                        "team_position",
+                        "win",
+                        "kills",
+                        "deaths",
+                        "assists",
+                        "gold_earned",
+                        "total_minions_killed",
+                        "neutral_minions_killed",
+                        "vision_score",
+                        "total_damage_dealt_to_champions",
+                        "summoner_spell_1_id",
+                        "summoner_spell_2_id",
+                        "item0",
+                        "item1",
+                        "item2",
+                        "item3",
+                        "item4",
+                        "item5",
+                        "item6",
+                    ),
+                ),
             )
             await self._session.execute(statement)
+
+    def _pick_fields(
+        self,
+        source: Mapping[str, object],
+        keys: tuple[str, ...],
+    ) -> dict[str, object]:
+        return {key: source[key] for key in keys}
