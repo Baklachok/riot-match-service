@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     riot_api_key: str = ""
     riot_platform: str = "euw1"
     riot_region: str = "europe"
+    riot_max_retries: int = 3
+    riot_backoff_base_seconds: float = 0.5
+    riot_rate_limit_rps: float = 20.0
+    riot_rate_limit_capacity: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",

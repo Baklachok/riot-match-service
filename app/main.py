@@ -18,6 +18,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             api_key=settings.riot_api_key,
             platform=settings.riot_platform,
             region=settings.riot_region,
+            max_retries=settings.riot_max_retries,
+            backoff_base_seconds=settings.riot_backoff_base_seconds,
+            rate_limit_rps=settings.riot_rate_limit_rps,
+            rate_limit_capacity=settings.riot_rate_limit_capacity,
         )
         yield
 

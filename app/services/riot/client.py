@@ -30,9 +30,21 @@ class RiotClient:
         api_key: str,
         platform: str,
         region: str,
+        *,
+        max_retries: int = 3,
+        backoff_base_seconds: float = 0.5,
+        rate_limit_rps: float = 20.0,
+        rate_limit_capacity: int = 20,
     ) -> None:
         self._routing = RiotRouting(platform=platform, region=region)
-        self._transport = RiotTransport(http_client=http_client, api_key=api_key)
+        self._transport = RiotTransport(
+            http_client=http_client,
+            api_key=api_key,
+            max_retries=max_retries,
+            backoff_base_seconds=backoff_base_seconds,
+            rate_limit_rps=rate_limit_rps,
+            rate_limit_capacity=rate_limit_capacity,
+        )
 
     async def get_account_by_riot_id(self, game_name: str, tag_line: str) -> RiotAccount:
         payload = await self._fetch_json(
