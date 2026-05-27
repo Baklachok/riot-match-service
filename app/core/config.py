@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "Riot Match Service"
     database_url: str = Field(
-        default="postgresql+asyncpg://riot:riot@localhost:5432/riot_match_service"
+        default="postgresql+asyncpg://riot:riot@postgres:5432/riot_match_service"
     )
     riot_api_key: str = ""
     riot_platform: str = "euw1"
