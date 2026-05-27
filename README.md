@@ -21,3 +21,14 @@ docker compose up --build
 - По умолчанию: `RIOT_MATCH_SYNC_COUNT=30` и `RIOT_MATCH_SYNC_QUEUE=420` (SoloQ).
 - Рекомендуемый диапазон для `N`: 20-50.
 - Детали запрашиваются только для отсутствующих локально `match_id`.
+
+## API
+
+- `GET /healthz`
+- `GET /api/v1/players/search?riot_id=G2%20SkewMond%233327`
+- `GET /api/v1/players/{puuid}/profile`
+- `GET /api/v1/players/{puuid}/matches?limit=20`
+- `GET /api/v1/players/{puuid}/champions?limit=20`
+- `POST /api/v1/admin/players/refresh`
+
+Read endpoint-ы (`GET /api/v1/players/*`) читают только локальную БД и не ходят в Riot API.
