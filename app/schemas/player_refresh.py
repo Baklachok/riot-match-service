@@ -34,3 +34,13 @@ class PlayerRefreshResponse(BaseModel):
 
     player: PlayerProfileResponse
     ranked_entries: list[RankedEntryResponse]
+
+
+class PlayerRefreshErrorDetail(BaseModel):
+    code: str
+    message: str
+    upstream_status: int | None = None
+
+
+class PlayerRefreshErrorResponse(BaseModel):
+    detail: PlayerRefreshErrorDetail

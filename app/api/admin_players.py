@@ -3,13 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.admin_players_mapper import to_player_refresh_response
 from app.core.config import settings
 from app.db.session import get_session
 from app.schemas.player_refresh import (
-    PlayerProfileResponse,
+    PlayerRefreshErrorDetail,
+    PlayerRefreshErrorResponse,
     PlayerRefreshRequest,
     PlayerRefreshResponse,
-    RankedEntryResponse,
 )
 from app.services.player_refresh import PlayerRefreshService
 from app.services.riot.client import RiotClient
@@ -19,7 +20,20 @@ from app.services.riot.errors import RiotApiError, RiotClientError
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
-@router.post("/players/refresh", response_model=PlayerRefreshResponse)
+@router.post(
+    "/players/refresh",
+    response_model=PlayerRefreshResponse,
+    responses={
+        404: {
+            "model": PlayerRefreshErrorResponse,
+            "description": "Player was not found in Riot API",
+        },
+        502: {
+            "model": PlayerRefreshErrorResponse,
+            "description": "Riot API is unavailable or returned an unexpected error",
+        },
+    },
+)
 async def refresh_player(
     payload: PlayerRefreshRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -38,35 +52,43 @@ async def refresh_player(
         )
     except RiotApiError as exc:
         if exc.status_code == 404:
-            raise HTTPException(status_code=404, detail="Player not found in Riot API") from exc
+            raise HTTPException(
+                status_code=404,
+                detail=_error_detail(
+                    code="PLAYER_NOT_FOUND",
+                    message="Player not found in Riot API",
+                    upstream_status=404,
+                ),
+            ) from exc
         raise HTTPException(
             status_code=502,
-            detail=f"Riot API returned {exc.status_code}",
+            detail=_error_detail(
+                code="RIOT_API_ERROR",
+                message="Riot API returned an error",
+                upstream_status=exc.status_code,
+            ),
         ) from exc
     except RiotClientError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=502,
+            detail=_error_detail(
+                code="RIOT_CLIENT_ERROR",
+                message=str(exc),
+                upstream_status=None,
+            ),
+        ) from exc
 
-    return PlayerRefreshResponse(
-        player=PlayerProfileResponse(
-            puuid=result.player.puuid,
-            game_name=result.player.game_name,
-            tag_line=result.player.tag_line,
-            platform=result.player.platform,
-            profile_icon_id=result.player.profile_icon_id,
-            summoner_level=result.player.summoner_level,
-            last_refreshed_at=result.player.last_refreshed_at,
-            refresh_status=result.player.refresh_status,
-            refresh_error=result.player.refresh_error,
-        ),
-        ranked_entries=[
-            RankedEntryResponse(
-                queue_type=entry.queue_type,
-                tier=entry.tier,
-                rank=entry.rank,
-                league_points=entry.league_points,
-                wins=entry.wins,
-                losses=entry.losses,
-            )
-            for entry in result.ranked_entries
-        ],
-    )
+    return to_player_refresh_response(result)
+
+
+def _error_detail(
+    *,
+    code: str,
+    message: str,
+    upstream_status: int | None,
+) -> dict[str, object]:
+    return PlayerRefreshErrorDetail(
+        code=code,
+        message=message,
+        upstream_status=upstream_status,
+    ).model_dump()
