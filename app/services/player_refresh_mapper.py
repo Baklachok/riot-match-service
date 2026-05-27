@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from app.services.player_refresh_models import (
@@ -101,16 +102,23 @@ def build_player_match_record(
     match_id: str,
     participant: RiotParticipant,
 ) -> dict[str, object]:
+    deaths = max(participant.deaths, 1)
+    kda = (Decimal(participant.kills + participant.assists) / Decimal(deaths)).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+
     return {
         "player_puuid": player_puuid,
         "match_id": match_id,
         "champion_id": participant.champion_id,
         "champion_name": participant.champion_name,
-        "team_position": participant.team_position,
+        "team_position": normalize_team_position(participant.team_position),
         "win": participant.win,
         "kills": participant.kills,
         "deaths": participant.deaths,
         "assists": participant.assists,
+        "kda": kda,
         "gold_earned": participant.gold_earned,
         "total_minions_killed": participant.total_minions_killed,
         "neutral_minions_killed": participant.neutral_minions_killed,
@@ -135,6 +143,15 @@ def normalize_patch(game_version: str) -> str | None:
     if len(parts) == 1:
         return parts[0]
     return None
+
+
+def normalize_team_position(team_position: str | None) -> str | None:
+    if team_position is None:
+        return None
+    normalized = team_position.strip().upper()
+    if normalized in {"", "NONE"}:
+        return None
+    return normalized
 
 
 def match_platform(match_id: str) -> str:

@@ -189,6 +189,7 @@ class PlayerRefreshRepository:
                         "kills",
                         "deaths",
                         "assists",
+                        "kda",
                         "gold_earned",
                         "total_minions_killed",
                         "neutral_minions_killed",

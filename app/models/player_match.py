@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
@@ -7,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     Text,
     UniqueConstraint,
     func,
@@ -43,6 +45,7 @@ class PlayerMatch(Base):
     kills: Mapped[int] = mapped_column(Integer, nullable=False)
     deaths: Mapped[int] = mapped_column(Integer, nullable=False)
     assists: Mapped[int] = mapped_column(Integer, nullable=False)
+    kda: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
     gold_earned: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     total_minions_killed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     neutral_minions_killed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
