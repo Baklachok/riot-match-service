@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-riot_match_service}
+      POSTGRES_USER: ${POSTGRES_USER:-riot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-riot}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-riot}:${POSTGRES_PASSWORD:-riot}@postgres:5432/${POSTGRES_DB:-riot_match_service}
+      RIOT_API_KEY: ${RIOT_API_KEY:-}
+      RIOT_PLATFORM: ${RIOT_PLATFORM:-euw1}
+      RIOT_REGION: ${RIOT_REGION:-europe}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  postgres_data:
