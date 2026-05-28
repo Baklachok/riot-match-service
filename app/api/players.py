@@ -18,7 +18,7 @@ from app.schemas.player_read import (
     ReadPlayerProfileResponse,
     ReadPlayerResponse,
 )
-from app.services.player_read import PlayerReadService
+from app.services import PlayerReadService
 
 _SOLOQ_QUEUE_ID = 420
 

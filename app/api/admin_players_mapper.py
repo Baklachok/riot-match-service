@@ -5,7 +5,7 @@ from app.schemas.player_refresh import (
     RankedEntryResponse,
     RefreshSummaryResponse,
 )
-from app.services.player_refresh import PlayerRefreshResult
+from app.services import PlayerRefreshResult
 
 
 def to_player_refresh_response(result: PlayerRefreshResult) -> PlayerRefreshResponse:

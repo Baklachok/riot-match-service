@@ -13,8 +13,7 @@ from app.schemas.player_refresh import (
     PlayerRefreshRequest,
     PlayerRefreshResponse,
 )
-from app.services.player_refresh import PlayerRefreshService
-from app.services.riot import RiotApiError, RiotClient, RiotClientError
+from app.services import PlayerRefreshService, RiotApiError, RiotClient, RiotClientError
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 

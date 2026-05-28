@@ -1,6 +1,6 @@
 from fastapi import Request
 
-from app.services.riot import RiotClient
+from app.services import RiotClient
 
 
 def get_riot_client(request: Request) -> RiotClient:
