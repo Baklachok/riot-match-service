@@ -10,7 +10,7 @@ from app.models.player import Player
 from app.models.player_match import PlayerMatch
 from app.models.ranked_entry import RankedEntry
 from app.services.player_refresh_models import RefreshedRankedEntry
-from app.services.riot.schemas import RiotAccount, RiotSummoner
+from app.services.riot.models import RiotAccount, RiotSummoner
 
 
 class PlayerRefreshRepository:

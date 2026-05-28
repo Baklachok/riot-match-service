@@ -8,10 +8,8 @@ from app.services.player_refresh_mapper import (
 )
 from app.services.player_refresh_models import MatchSyncSummary
 from app.services.player_refresh_repository import PlayerRefreshRepository
-from app.services.riot.client import RiotClient
-from app.services.riot.errors import RiotClientError
-from app.services.riot.parsers import parse_match
-from app.services.riot.schemas import RiotMatch
+from app.services.riot import RiotClient, RiotClientError
+from app.services.riot.models import RiotMatch
 
 _MATCH_IDS_FETCH_FAILED_MARKER = "match-ids-fetch"
 
@@ -233,7 +231,7 @@ class PlayerMatchSyncCollector:
         if raw_json is None:
             return None
         try:
-            return parse_match(raw_json)
+            return RiotMatch.from_payload(raw_json)
         except (TypeError, ValueError):
             return None
 

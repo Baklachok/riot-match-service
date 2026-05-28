@@ -1,6 +1,6 @@
 from urllib.parse import quote
 
-from app.services.riot.endpoints import HostKind
+from app.services.riot.routing.endpoints import HostKind
 
 
 class RiotRouting:

@@ -19,9 +19,8 @@ from app.services.player_refresh_models import (
     RefreshedRankedEntry,
 )
 from app.services.player_refresh_repository import PlayerRefreshRepository
-from app.services.riot.client import RiotClient
-from app.services.riot.errors import RiotClientError
-from app.services.riot.schemas import RiotAccount, RiotSummoner
+from app.services.riot import RiotClient, RiotClientError
+from app.services.riot.models import RiotAccount, RiotSummoner
 
 __all__ = (
     "MatchSyncSummary",

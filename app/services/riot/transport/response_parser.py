@@ -2,8 +2,8 @@ from typing import Any, cast
 
 import httpx
 
-from app.services.riot.endpoints import ResponseKind
 from app.services.riot.errors import RiotApiError, RiotClientError
+from app.services.riot.routing import ResponseKind
 
 
 class RiotResponseParser:

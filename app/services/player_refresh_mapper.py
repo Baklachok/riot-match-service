@@ -7,7 +7,7 @@ from app.services.player_refresh_models import (
     RefreshedPlayer,
     RefreshedRankedEntry,
 )
-from app.services.riot.schemas import (
+from app.services.riot.models import (
     RiotAccount,
     RiotLeagueEntry,
     RiotMatch,

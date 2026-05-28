@@ -1,38 +1,8 @@
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
-
-class RiotBaseModel(BaseModel):
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
-
-
-class RiotAccount(RiotBaseModel):
-    puuid: str
-    game_name: str = Field(alias="gameName")
-    tag_line: str = Field(alias="tagLine")
-
-
-class RiotSummoner(RiotBaseModel):
-    puuid: str
-    id: str | None = None
-    account_id: str | None = Field(default=None, alias="accountId")
-    profile_icon_id: int | None = Field(default=None, alias="profileIconId")
-    revision_date: int | None = Field(default=None, alias="revisionDate")
-    summoner_level: int | None = Field(default=None, alias="summonerLevel")
-
-
-class RiotLeagueEntry(RiotBaseModel):
-    queue_type: str = Field(alias="queueType")
-    tier: str | None = None
-    rank: str | None = None
-    league_points: int = Field(default=0, alias="leaguePoints")
-    wins: int = 0
-    losses: int = 0
-    hot_streak: bool | None = Field(default=None, alias="hotStreak")
-    veteran: bool | None = None
-    fresh_blood: bool | None = Field(default=None, alias="freshBlood")
-    inactive: bool | None = None
+from app.services.riot.models.base import RiotBaseModel
 
 
 class RiotMatchMetadata(RiotBaseModel):
@@ -87,3 +57,9 @@ class RiotMatch(RiotBaseModel):
     metadata: RiotMatchMetadata
     info: RiotMatchInfo
     raw_json: dict[str, Any] = Field(default_factory=dict, exclude=True)
+
+    @classmethod
+    def from_payload(cls, payload: dict[str, Any]) -> "RiotMatch":
+        match = cls.model_validate(payload)
+        match.raw_json = payload
+        return match

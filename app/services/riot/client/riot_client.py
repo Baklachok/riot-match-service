@@ -3,7 +3,15 @@ from typing import Any, cast
 
 import httpx
 
-from app.services.riot.endpoints import (
+from app.services.riot.models import RiotAccount, RiotLeagueEntry, RiotMatch, RiotSummoner
+from app.services.riot.parsing import (
+    parse_account,
+    parse_match,
+    parse_match_ids,
+    parse_ranked_entries,
+    parse_summoner,
+)
+from app.services.riot.routing import (
     ACCOUNT_BY_PUUID,
     ACCOUNT_BY_RIOT_ID,
     MATCH_BY_ID,
@@ -11,16 +19,8 @@ from app.services.riot.endpoints import (
     RANKED_ENTRIES_BY_PUUID,
     SUMMONER_BY_PUUID,
     RiotEndpoint,
+    RiotRouting,
 )
-from app.services.riot.parsers import (
-    parse_account,
-    parse_match,
-    parse_match_ids,
-    parse_ranked_entries,
-    parse_summoner,
-)
-from app.services.riot.routing import RiotRouting
-from app.services.riot.schemas import RiotAccount, RiotLeagueEntry, RiotMatch, RiotSummoner
 from app.services.riot.transport import RiotTransport
 
 

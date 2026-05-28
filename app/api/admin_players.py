@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.admin_players_mapper import to_player_refresh_response
+from app.api.dependencies import get_riot_client
 from app.core.config import settings
 from app.db.session import get_session
 from app.schemas.player_refresh import (
@@ -13,9 +14,7 @@ from app.schemas.player_refresh import (
     PlayerRefreshResponse,
 )
 from app.services.player_refresh import PlayerRefreshService
-from app.services.riot.client import RiotClient
-from app.services.riot.dependencies import get_riot_client
-from app.services.riot.errors import RiotApiError, RiotClientError
+from app.services.riot import RiotApiError, RiotClient, RiotClientError
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 

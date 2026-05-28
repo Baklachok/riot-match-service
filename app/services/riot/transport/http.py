@@ -5,11 +5,11 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from app.services.riot.endpoints import ResponseKind
 from app.services.riot.errors import RiotClientError, RiotConfigurationError
-from app.services.riot.transport_rate_limit import HostRateLimiter
-from app.services.riot.transport_response import RiotResponseParser
-from app.services.riot.transport_retry import RiotRetryPolicy
+from app.services.riot.routing import ResponseKind
+from app.services.riot.transport.rate_limit import HostRateLimiter
+from app.services.riot.transport.response_parser import RiotResponseParser
+from app.services.riot.transport.retry_policy import RiotRetryPolicy
 
 
 class RiotTransport:
