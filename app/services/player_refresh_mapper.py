@@ -1,6 +1,5 @@
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
 
 from app.services.player_refresh_models import (
     MatchSyncSummary,
@@ -8,7 +7,6 @@ from app.services.player_refresh_models import (
     RefreshedPlayer,
     RefreshedRankedEntry,
 )
-from app.services.riot.parsers import parse_match
 from app.services.riot.schemas import (
     RiotAccount,
     RiotLeagueEntry,
@@ -67,10 +65,6 @@ def normalize_error_message(exc: Exception) -> str:
     if not message:
         message = exc.__class__.__name__
     return message[:500]
-
-
-def parse_match_from_raw(raw_json: dict[str, Any]) -> RiotMatch:
-    return parse_match(raw_json)
 
 
 def extract_player_participant(match: RiotMatch, player_puuid: str) -> RiotParticipant | None:
