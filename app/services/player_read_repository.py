@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import TypeAlias
+from typing import Any, TypeAlias
+from typing import cast as type_cast
 
 from sqlalchemy import Integer, Numeric, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ from app.services.player_read_models import (
     ReadRankedEntry,
 )
 
+_DecimalLike: TypeAlias = Decimal | float
 _PlayerRow: TypeAlias = tuple[
     str,
     str,
@@ -28,6 +30,23 @@ _PlayerRow: TypeAlias = tuple[
     str | None,
     str | None,
 ]
+_RankedEntryRow: TypeAlias = tuple[str, str | None, str | None, int, int, int]
+_PlayerMatchRow: TypeAlias = tuple[
+    str,
+    int,
+    str,
+    str | None,
+    bool,
+    int,
+    int,
+    int,
+    _DecimalLike,
+    int,
+    datetime,
+    int,
+    str | None,
+]
+_ChampionStatsRow: TypeAlias = tuple[int, str, int, int, int, _DecimalLike, _DecimalLike]
 
 
 class PlayerReadRepository:
@@ -40,80 +59,57 @@ class PlayerReadRepository:
         game_name: str,
         tag_line: str,
     ) -> ReadPlayer | None:
-        statement = self._player_select_statement().where(
-            func.lower(Player.game_name) == game_name.lower(),
-            func.lower(Player.tag_line) == tag_line.lower(),
+        return await self._fetch_player(
+            self._build_player_by_riot_id_statement(
+                game_name=game_name,
+                tag_line=tag_line,
+            )
         )
-        return await self._fetch_player(statement)
 
     async def get_player_by_puuid(self, *, puuid: str) -> ReadPlayer | None:
-        statement = self._player_select_statement().where(Player.puuid == puuid)
-        return await self._fetch_player(statement)
+        return await self._fetch_player(
+            self._build_player_by_puuid_statement(puuid=puuid),
+        )
 
     async def get_ranked_entries(self, *, player_puuid: str) -> list[ReadRankedEntry]:
-        statement = (
-            select(
-                RankedEntry.queue_type,
-                RankedEntry.tier,
-                RankedEntry.rank,
-                RankedEntry.league_points,
-                RankedEntry.wins,
-                RankedEntry.losses,
-            )
-            .where(RankedEntry.player_puuid == player_puuid)
-            .order_by(RankedEntry.queue_type.asc())
+        rows = await self._session.execute(
+            self._build_ranked_entries_statement(player_puuid=player_puuid),
         )
-        rows = await self._session.execute(statement)
         return [
-            ReadRankedEntry(
-                queue_type=queue_type,
-                tier=tier,
-                rank=rank,
-                league_points=league_points,
-                wins=wins,
-                losses=losses,
+            self._map_ranked_entry(
+                (
+                    queue_type,
+                    tier,
+                    rank,
+                    league_points,
+                    wins,
+                    losses,
+                )
             )
             for queue_type, tier, rank, league_points, wins, losses in rows
         ]
 
     async def get_matches(self, *, player_puuid: str, limit: int) -> list[ReadPlayerMatch]:
-        statement = (
-            select(
-                PlayerMatch.match_id,
-                PlayerMatch.champion_id,
-                PlayerMatch.champion_name,
-                PlayerMatch.team_position,
-                PlayerMatch.win,
-                PlayerMatch.kills,
-                PlayerMatch.deaths,
-                PlayerMatch.assists,
-                PlayerMatch.kda,
-                Match.queue_id,
-                Match.game_start,
-                Match.duration_seconds,
-                Match.patch,
-            )
-            .join(Match, Match.match_id == PlayerMatch.match_id)
-            .where(PlayerMatch.player_puuid == player_puuid)
-            .order_by(Match.game_start.desc(), PlayerMatch.match_id.desc())
-            .limit(limit)
+        rows = await self._session.execute(
+            self._build_matches_statement(player_puuid=player_puuid, limit=limit),
         )
-        rows = await self._session.execute(statement)
         return [
-            ReadPlayerMatch(
-                match_id=match_id,
-                champion_id=champion_id,
-                champion_name=champion_name,
-                lane=lane,
-                win=win,
-                kills=kills,
-                deaths=deaths,
-                assists=assists,
-                kda=_to_float(kda),
-                queue_id=queue_id,
-                game_start=game_start,
-                duration_seconds=duration_seconds,
-                patch=patch,
+            self._map_player_match(
+                (
+                    match_id,
+                    champion_id,
+                    champion_name,
+                    lane,
+                    win,
+                    kills,
+                    deaths,
+                    assists,
+                    kda,
+                    queue_id,
+                    game_start,
+                    duration_seconds,
+                    patch,
+                )
             )
             for (
                 match_id,
@@ -139,27 +135,88 @@ class PlayerReadRepository:
         queue_id: int,
         limit: int,
     ) -> list[ReadChampionStats]:
-        games_expr = func.count(PlayerMatch.id)
-        wins_expr = func.sum(cast(PlayerMatch.win, Integer))
-        losses_expr = games_expr - wins_expr
-        win_rate_percent_expr = func.round(
-            (cast(wins_expr, Numeric(12, 2)) * 100)
-            / cast(func.greatest(games_expr, 1), Numeric(12, 2)),
-            2,
+        rows = await self._session.execute(
+            self._build_champion_stats_statement(
+                player_puuid=player_puuid,
+                queue_id=queue_id,
+                limit=limit,
+            )
         )
-        kda_expr = func.round(
-            cast(func.sum(PlayerMatch.kills + PlayerMatch.assists), Numeric(12, 2))
-            / cast(func.greatest(func.sum(PlayerMatch.deaths), 1), Numeric(12, 2)),
-            2,
+        return [
+            self._map_champion_stats(
+                (
+                    champion_id,
+                    champion_name,
+                    games,
+                    wins,
+                    losses,
+                    win_rate_percent,
+                    kda,
+                )
+            )
+            for champion_id, champion_name, games, wins, losses, win_rate_percent, kda in rows
+        ]
+
+    def _build_player_by_riot_id_statement(
+        self,
+        *,
+        game_name: str,
+        tag_line: str,
+    ) -> Select[_PlayerRow]:
+        return self._player_select_statement().where(
+            func.lower(Player.game_name) == game_name.lower(),
+            func.lower(Player.tag_line) == tag_line.lower(),
         )
 
-        games = games_expr.label("games")
-        wins = wins_expr.label("wins")
-        losses = losses_expr.label("losses")
-        win_rate_percent = win_rate_percent_expr.label("win_rate_percent")
-        kda = kda_expr.label("kda")
+    def _build_player_by_puuid_statement(self, *, puuid: str) -> Select[_PlayerRow]:
+        return self._player_select_statement().where(Player.puuid == puuid)
 
-        statement = (
+    def _build_ranked_entries_statement(self, *, player_puuid: str) -> Select[_RankedEntryRow]:
+        return (
+            select(
+                RankedEntry.queue_type,
+                RankedEntry.tier,
+                RankedEntry.rank,
+                RankedEntry.league_points,
+                RankedEntry.wins,
+                RankedEntry.losses,
+            )
+            .where(RankedEntry.player_puuid == player_puuid)
+            .order_by(RankedEntry.queue_type.asc())
+        )
+
+    def _build_matches_statement(self, *, player_puuid: str, limit: int) -> Select[_PlayerMatchRow]:
+        return (
+            select(
+                PlayerMatch.match_id,
+                PlayerMatch.champion_id,
+                PlayerMatch.champion_name,
+                PlayerMatch.team_position,
+                PlayerMatch.win,
+                PlayerMatch.kills,
+                PlayerMatch.deaths,
+                PlayerMatch.assists,
+                PlayerMatch.kda,
+                Match.queue_id,
+                Match.game_start,
+                Match.duration_seconds,
+                Match.patch,
+            )
+            .join(Match, Match.match_id == PlayerMatch.match_id)
+            .where(PlayerMatch.player_puuid == player_puuid)
+            .order_by(Match.game_start.desc(), PlayerMatch.match_id.desc())
+            .limit(limit)
+        )
+
+    def _build_champion_stats_statement(
+        self,
+        *,
+        player_puuid: str,
+        queue_id: int,
+        limit: int,
+    ) -> Select[_ChampionStatsRow]:
+        games, wins, losses, win_rate_percent, kda = self._build_champion_aggregates()
+        return (
             select(
                 PlayerMatch.champion_id,
                 PlayerMatch.champion_name,
@@ -183,19 +240,22 @@ class PlayerReadRepository:
             )
             .limit(limit)
         )
-        rows = await self._session.execute(statement)
-        return [
-            ReadChampionStats(
-                champion_id=champion_id,
-                champion_name=champion_name,
-                games=games,
-                wins=wins,
-                losses=losses,
-                win_rate_percent=_to_float(win_rate_percent),
-                kda=_to_float(kda),
-            )
-            for champion_id, champion_name, games, wins, losses, win_rate_percent, kda in rows
-        ]
+
+    def _build_champion_aggregates(self) -> tuple[Any, Any, Any, Any, Any]:
+        games = func.count(PlayerMatch.id).label("games")
+        wins = func.sum(cast(PlayerMatch.win, Integer)).label("wins")
+        losses = (games - wins).label("losses")
+        win_rate_percent = func.round(
+            (cast(wins, Numeric(12, 2)) * 100)
+            / cast(func.greatest(games, 1), Numeric(12, 2)),
+            2,
+        ).label("win_rate_percent")
+        kda = func.round(
+            cast(func.sum(PlayerMatch.kills + PlayerMatch.assists), Numeric(12, 2))
+            / cast(func.greatest(func.sum(PlayerMatch.deaths), 1), Numeric(12, 2)),
+            2,
+        ).label("kda")
+        return games, wins, losses, win_rate_percent, kda
 
     def _player_select_statement(self) -> Select[_PlayerRow]:
         return select(
@@ -214,6 +274,10 @@ class PlayerReadRepository:
         row = (await self._session.execute(statement)).one_or_none()
         if row is None:
             return None
+        return self._map_player(type_cast(_PlayerRow, tuple(row)))
+
+    @staticmethod
+    def _map_player(row: _PlayerRow) -> ReadPlayer:
         (
             puuid,
             game_name,
@@ -237,8 +301,66 @@ class PlayerReadRepository:
             refresh_error=refresh_error,
         )
 
+    @staticmethod
+    def _map_ranked_entry(row: _RankedEntryRow) -> ReadRankedEntry:
+        queue_type, tier, rank, league_points, wins, losses = row
+        return ReadRankedEntry(
+            queue_type=queue_type,
+            tier=tier,
+            rank=rank,
+            league_points=league_points,
+            wins=wins,
+            losses=losses,
+        )
 
-def _to_float(value: Decimal | float) -> float:
+    @staticmethod
+    def _map_player_match(row: _PlayerMatchRow) -> ReadPlayerMatch:
+        (
+            match_id,
+            champion_id,
+            champion_name,
+            lane,
+            win,
+            kills,
+            deaths,
+            assists,
+            kda,
+            queue_id,
+            game_start,
+            duration_seconds,
+            patch,
+        ) = row
+        return ReadPlayerMatch(
+            match_id=match_id,
+            champion_id=champion_id,
+            champion_name=champion_name,
+            lane=lane,
+            win=win,
+            kills=kills,
+            deaths=deaths,
+            assists=assists,
+            kda=_to_float(kda),
+            queue_id=queue_id,
+            game_start=game_start,
+            duration_seconds=duration_seconds,
+            patch=patch,
+        )
+
+    @staticmethod
+    def _map_champion_stats(row: _ChampionStatsRow) -> ReadChampionStats:
+        champion_id, champion_name, games, wins, losses, win_rate_percent, kda = row
+        return ReadChampionStats(
+            champion_id=champion_id,
+            champion_name=champion_name,
+            games=games,
+            wins=wins,
+            losses=losses,
+            win_rate_percent=_to_float(win_rate_percent),
+            kda=_to_float(kda),
+        )
+
+
+def _to_float(value: _DecimalLike) -> float:
     if isinstance(value, float):
         return value
     return float(value)
