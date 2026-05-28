@@ -31,4 +31,17 @@ docker compose up --build
 - `GET /api/v1/players/{puuid}/champions?limit=20`
 - `POST /api/v1/admin/players/refresh`
 
+`POST /api/v1/admin/players/refresh` принимает:
+
+- Riot ID:
+  `{"identifier": "G2 SkewMond#3327"}`
+- или PUUID:
+  `{"identifier": "some-puuid"}`
+
+В ответе есть `summary`:
+
+- `matches_found`
+- `new_matches_saved`
+- `refreshed_at`
+
 Read endpoint-ы (`GET /api/v1/players/*`) читают только локальную БД и не ходят в Riot API.

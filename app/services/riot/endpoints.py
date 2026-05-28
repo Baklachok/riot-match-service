@@ -25,6 +25,12 @@ ACCOUNT_BY_RIOT_ID = RiotEndpoint(
     response_kind=ResponseKind.OBJECT,
 )
 
+ACCOUNT_BY_PUUID = RiotEndpoint(
+    path_template="/riot/account/v1/accounts/by-puuid/{puuid}",
+    host_kind=HostKind.REGIONAL,
+    response_kind=ResponseKind.OBJECT,
+)
+
 SUMMONER_BY_PUUID = RiotEndpoint(
     path_template="/lol/summoner/v4/summoners/by-puuid/{puuid}",
     host_kind=HostKind.PLATFORM,

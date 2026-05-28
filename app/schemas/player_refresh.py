@@ -4,8 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class PlayerRefreshRequest(BaseModel):
-    game_name: str = Field(min_length=1, max_length=64)
-    tag_line: str = Field(min_length=1, max_length=16)
+    identifier: str = Field(min_length=1, max_length=128)
 
 
 class RankedEntryResponse(BaseModel):
@@ -41,12 +40,19 @@ class MatchSyncResponse(BaseModel):
     failed_match_ids: list[str]
 
 
+class RefreshSummaryResponse(BaseModel):
+    matches_found: int
+    new_matches_saved: int
+    refreshed_at: datetime
+
+
 class PlayerRefreshResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     player: PlayerProfileResponse
     ranked_entries: list[RankedEntryResponse]
     match_sync: MatchSyncResponse
+    summary: RefreshSummaryResponse
 
 
 class PlayerRefreshErrorDetail(BaseModel):

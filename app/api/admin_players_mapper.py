@@ -3,6 +3,7 @@ from app.schemas.player_refresh import (
     PlayerProfileResponse,
     PlayerRefreshResponse,
     RankedEntryResponse,
+    RefreshSummaryResponse,
 )
 from app.services.player_refresh import PlayerRefreshResult
 
@@ -41,5 +42,10 @@ def to_player_refresh_response(result: PlayerRefreshResult) -> PlayerRefreshResp
             backfilled_from_raw=result.match_sync.backfilled_from_raw,
             failed_matches=result.match_sync.failed_matches,
             failed_match_ids=result.match_sync.failed_match_ids,
+        ),
+        summary=RefreshSummaryResponse(
+            matches_found=result.match_sync.match_ids_received,
+            new_matches_saved=result.match_sync.new_matches_saved,
+            refreshed_at=result.player.last_refreshed_at,
         ),
     )

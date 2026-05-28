@@ -4,6 +4,7 @@ from typing import Any, cast
 import httpx
 
 from app.services.riot.endpoints import (
+    ACCOUNT_BY_PUUID,
     ACCOUNT_BY_RIOT_ID,
     MATCH_BY_ID,
     MATCH_IDS_BY_PUUID,
@@ -52,6 +53,10 @@ class RiotClient:
             game_name=game_name,
             tag_line=tag_line,
         )
+        return parse_account(cast(dict[str, Any], payload))
+
+    async def get_account_by_puuid(self, puuid: str) -> RiotAccount:
+        payload = await self._fetch_json(ACCOUNT_BY_PUUID, puuid=puuid)
         return parse_account(cast(dict[str, Any], payload))
 
     async def get_summoner_by_puuid(self, puuid: str) -> RiotSummoner:

@@ -257,12 +257,23 @@ class PlayerRefreshService:
             match_sync_queue=match_sync_queue,
         )
 
-    async def refresh_player(self, *, game_name: str, tag_line: str) -> PlayerRefreshResult:
+    async def refresh_player_by_riot_id(
+        self,
+        *,
+        game_name: str,
+        tag_line: str,
+    ) -> PlayerRefreshResult:
         account = await self._riot_client.get_account_by_riot_id(
             game_name=game_name,
             tag_line=tag_line,
         )
+        return await self._refresh_account(account=account)
 
+    async def refresh_player_by_puuid(self, *, puuid: str) -> PlayerRefreshResult:
+        account = await self._riot_client.get_account_by_puuid(puuid=puuid)
+        return await self._refresh_account(account=account)
+
+    async def _refresh_account(self, *, account: RiotAccount) -> PlayerRefreshResult:
         summoner: RiotSummoner | None = None
         try:
             summoner = await self._riot_client.get_summoner_by_puuid(account.puuid)
